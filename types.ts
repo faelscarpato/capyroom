@@ -17,7 +17,6 @@ export enum EditTool {
   REMOVE = 'REMOVER'
 }
 
-// Added Photo interface to fix 'no exported member Photo' error
 export interface Photo {
   id: string;
   name: string;
@@ -56,11 +55,16 @@ export interface Adjustments {
   // Detail
   sharpening: number;
   noiseReduction: number;
+  // Optics
+  lensCorrection: number;
+  chromaticAberration: boolean;
   // Geometry
-  rotation: number;
+  rotation: number; // 0, 90, 180, 270
   flipH: boolean;
   flipV: boolean;
-  straighten: number;
+  straighten: number; // fine rotation -45 to 45
+  aspectRatio: string;
+  crop: { x: number; y: number; w: number; h: number }; // normalized 0-1
 }
 
 export const DEFAULT_ADJUSTMENTS: Adjustments = {
@@ -70,25 +74,15 @@ export const DEFAULT_ADJUSTMENTS: Adjustments = {
   shadows: 0,
   whites: 0,
   blacks: 0,
-  curvePoints: [
-    { x: 0, y: 0 },
-    { x: 0.33, y: 0.33 },
-    { x: 0.66, y: 0.66 },
-    { x: 1, y: 1 }
-  ],
+  curvePoints: [{ x: 0, y: 0 }, { x: 0.33, y: 0.33 }, { x: 0.66, y: 0.66 }, { x: 1, y: 1 }],
   temp: 0,
   tint: 0,
   vibrance: 0,
   saturation: 0,
   hsl: {
-    red: { h: 0, s: 0, l: 0 },
-    orange: { h: 0, s: 0, l: 0 },
-    yellow: { h: 0, s: 0, l: 0 },
-    green: { h: 0, s: 0, l: 0 },
-    aqua: { h: 0, s: 0, l: 0 },
-    blue: { h: 0, s: 0, l: 0 },
-    purple: { h: 0, s: 0, l: 0 },
-    magenta: { h: 0, s: 0, l: 0 },
+    red: { h: 0, s: 0, l: 0 }, orange: { h: 0, s: 0, l: 0 }, yellow: { h: 0, s: 0, l: 0 },
+    green: { h: 0, s: 0, l: 0 }, aqua: { h: 0, s: 0, l: 0 }, blue: { h: 0, s: 0, l: 0 },
+    purple: { h: 0, s: 0, l: 0 }, magenta: { h: 0, s: 0, l: 0 },
   },
   texture: 0,
   clarity: 0,
@@ -97,8 +91,12 @@ export const DEFAULT_ADJUSTMENTS: Adjustments = {
   grain: 0,
   sharpening: 0,
   noiseReduction: 0,
+  lensCorrection: 0,
+  chromaticAberration: false,
   rotation: 0,
   flipH: false,
   flipV: false,
   straighten: 0,
+  aspectRatio: 'Original',
+  crop: { x: 0, y: 0, w: 1, h: 1 }
 };
