@@ -1,0 +1,7 @@
+{
+  "name": "CapyRoom - Editor Pro",
+  "description": "Um editor de fotos profissional mobile-first inspirado no Lightroom, com processamento WebGL2 de alta performance e exportação em resolução total.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
