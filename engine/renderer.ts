@@ -105,6 +105,23 @@ export class WebGLRenderer {
     setUniform('u_vignette', adjustments.vignette);
     setUniform('u_grain', adjustments.grain);
 
+    // HSL Uniforms
+    const colors = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+    const hArr = new Float32Array(8);
+    const sArr = new Float32Array(8);
+    const lArr = new Float32Array(8);
+    
+    colors.forEach((c, i) => {
+        const val = adjustments.hsl[c];
+        hArr[i] = val.h;
+        sArr[i] = val.s;
+        lArr[i] = val.l;
+    });
+
+    gl.uniform1fv(gl.getUniformLocation(this.program, 'u_hsl_h'), hArr);
+    gl.uniform1fv(gl.getUniformLocation(this.program, 'u_hsl_s'), sArr);
+    gl.uniform1fv(gl.getUniformLocation(this.program, 'u_hsl_l'), lArr);
+
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.uniform1i(gl.getUniformLocation(this.program, 'u_image'), 0);
