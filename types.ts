@@ -59,12 +59,12 @@ export interface Adjustments {
   lensCorrection: number;
   chromaticAberration: boolean;
   // Geometry
-  rotation: number; // 0, 90, 180, 270
+  rotation: number;
   flipH: boolean;
   flipV: boolean;
-  straighten: number; // fine rotation -45 to 45
+  straighten: number;
   aspectRatio: string;
-  crop: { x: number; y: number; w: number; h: number }; // normalized 0-1
+  crop: { x: number; y: number; w: number; h: number };
 }
 
 export const DEFAULT_ADJUSTMENTS: Adjustments = {
@@ -97,6 +97,6 @@ export const DEFAULT_ADJUSTMENTS: Adjustments = {
   flipH: false,
   flipV: false,
   straighten: 0,
-  aspectRatio: 'Original',
+  aspectRatio: 'Livre',
   crop: { x: 0, y: 0, w: 1, h: 1 }
 };
