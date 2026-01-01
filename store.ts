@@ -15,6 +15,7 @@ interface AppState {
   setActivePhoto: (id: string | null) => void;
   updateAdjustments: (adj: Partial<Adjustments>) => void;
   applyAutoAdjustments: () => void;
+  applyPreset: (presetName: string) => void;
   undo: () => void;
   redo: () => void;
   resetAdjustments: () => void;
@@ -37,7 +38,7 @@ export const useStore = create<AppState>((set) => ({
         name: file.name,
         file,
         previewUrl: url,
-        width: 0, // Will be set on load
+        width: 0,
         height: 0,
         lastModified: file.lastModified,
         adjustments: { ...DEFAULT_ADJUSTMENTS },
@@ -79,46 +80,43 @@ export const useStore = create<AppState>((set) => ({
     };
   }),
 
-  applyAutoAdjustments: () => set((state) => {
+  applyPreset: (name) => set((state) => {
     if (!state.activePhotoId) return state;
     const photo = state.photos.find(p => p.id === state.activePhotoId);
     if (!photo) return state;
 
-    const auto: Partial<Adjustments> = {
-      exposure: 12,
-      contrast: 15,
-      highlights: -25,
-      shadows: 20,
-      whites: 10,
-      blacks: -10,
-      vibrance: 25,
-      saturation: 5,
-      temp: 4,
-      tint: 0,
-    };
+    let preset: Partial<Adjustments> = {};
+    switch(name) {
+      case 'B&W': 
+        preset = { saturation: -100, contrast: 20, exposure: 10, highlights: -10, shadows: 10 }; break;
+      case 'CINEMA': 
+        preset = { temp: 10, tint: -5, contrast: 15, shadows: -10, saturation: 10, vignette: -30 }; break;
+      case 'VINTAGE': 
+        preset = { temp: 15, grain: 40, contrast: -10, exposure: 5, texture: -20, vignette: -20 }; break;
+      case 'VIVID': 
+        preset = { vibrance: 40, saturation: 10, contrast: 10, texture: 15 }; break;
+    }
 
+    const newAdjustments = { ...photo.adjustments, ...preset };
+    const updatedPhotos = state.photos.map(p => p.id === state.activePhotoId ? { ...p, adjustments: newAdjustments } : p);
+    return { photos: updatedPhotos, history: [...state.history, newAdjustments], historyIndex: state.historyIndex + 1 };
+  }),
+
+  applyAutoAdjustments: () => set((state) => {
+    if (!state.activePhotoId) return state;
+    const photo = state.photos.find(p => p.id === state.activePhotoId);
+    if (!photo) return state;
+    const auto: Partial<Adjustments> = { exposure: 12, contrast: 15, highlights: -25, shadows: 20, vibrance: 25 };
     const newAdjustments = { ...photo.adjustments, ...auto };
-    const updatedPhotos = state.photos.map(p => 
-      p.id === state.activePhotoId ? { ...p, adjustments: newAdjustments } : p
-    );
-
-    const newHistory = state.history.slice(0, state.historyIndex + 1);
-    newHistory.push(newAdjustments);
-
-    return { 
-      photos: updatedPhotos,
-      history: newHistory,
-      historyIndex: newHistory.length - 1
-    };
+    const updatedPhotos = state.photos.map(p => p.id === state.activePhotoId ? { ...p, adjustments: newAdjustments } : p);
+    return { photos: updatedPhotos, history: [...state.history, newAdjustments], historyIndex: state.historyIndex + 1 };
   }),
 
   undo: () => set((state) => {
     if (state.historyIndex <= 0) return state;
     const newIndex = state.historyIndex - 1;
     const adj = state.history[newIndex];
-    const updatedPhotos = state.photos.map(p => 
-      p.id === state.activePhotoId ? { ...p, adjustments: adj } : p
-    );
+    const updatedPhotos = state.photos.map(p => p.id === state.activePhotoId ? { ...p, adjustments: adj } : p);
     return { photos: updatedPhotos, historyIndex: newIndex };
   }),
 
@@ -126,21 +124,13 @@ export const useStore = create<AppState>((set) => ({
     if (state.historyIndex >= state.history.length - 1) return state;
     const newIndex = state.historyIndex + 1;
     const adj = state.history[newIndex];
-    const updatedPhotos = state.photos.map(p => 
-      p.id === state.activePhotoId ? { ...p, adjustments: adj } : p
-    );
+    const updatedPhotos = state.photos.map(p => p.id === state.activePhotoId ? { ...p, adjustments: adj } : p);
     return { photos: updatedPhotos, historyIndex: newIndex };
   }),
 
   resetAdjustments: () => set((state) => {
     if (!state.activePhotoId) return state;
-    const updatedPhotos = state.photos.map(p => 
-      p.id === state.activePhotoId ? { ...p, adjustments: { ...DEFAULT_ADJUSTMENTS } } : p
-    );
-    return { 
-      photos: updatedPhotos, 
-      history: [{ ...DEFAULT_ADJUSTMENTS }], 
-      historyIndex: 0 
-    };
+    const updatedPhotos = state.photos.map(p => p.id === state.activePhotoId ? { ...p, adjustments: { ...DEFAULT_ADJUSTMENTS } } : p);
+    return { photos: updatedPhotos, history: [{ ...DEFAULT_ADJUSTMENTS }], historyIndex: 0 };
   })
 }));
