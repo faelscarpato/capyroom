@@ -12,6 +12,7 @@ void main() {
 export const FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 uniform sampler2D u_image;
+uniform sampler2D u_curve_lut;
 uniform float u_exposure;
 uniform float u_contrast;
 uniform float u_highlights;
@@ -26,7 +27,7 @@ uniform float u_texture;
 uniform float u_vignette;
 uniform float u_grain;
 
-// HSL Mixers: 8 colors (Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta)
+// HSL Mixers: 8 colors
 uniform float u_hsl_h[8];
 uniform float u_hsl_s[8];
 uniform float u_hsl_l[8];
@@ -82,15 +83,21 @@ void main() {
     vec4 color = texture(u_image, v_texCoord);
     vec3 rgb = color.rgb;
 
-    rgb.r += u_temp * 0.1;
-    rgb.b -= u_temp * 0.1;
-    rgb.g -= u_tint * 0.1;
-    rgb.r += u_tint * 0.05;
-    rgb.b += u_tint * 0.05;
+    // Apply Temperature and Tint
+    rgb.r += u_temp * 0.05;
+    rgb.b -= u_temp * 0.05;
+    rgb.g -= u_tint * 0.05;
 
+    // Exposure and Contrast
     rgb *= pow(2.0, u_exposure / 50.0);
     rgb = (rgb - 0.5) * (1.0 + u_contrast / 100.0) + 0.5;
 
+    // Apply Tone Curve via LUT
+    rgb.r = texture(u_curve_lut, vec2(clamp(rgb.r, 0.0, 1.0), 0.5)).r;
+    rgb.g = texture(u_curve_lut, vec2(clamp(rgb.g, 0.0, 1.0), 0.5)).r;
+    rgb.b = texture(u_curve_lut, vec2(clamp(rgb.b, 0.0, 1.0), 0.5)).r;
+
+    // Highlights and Shadows mask
     float luminance = dot(rgb, vec3(0.299, 0.587, 0.114));
     float h_mask = smoothstep(0.5, 1.0, luminance);
     float s_mask = smoothstep(0.5, 0.0, luminance);
@@ -99,15 +106,13 @@ void main() {
 
     vec3 hsl = rgb2hsl(rgb);
     
-    // Per-color HSL Adjustments
+    // Per-color HSL
     float h = hsl.x;
     float weights[8];
-    // Define hue centers (0 to 1 range)
     float centers[8] = float[](0.0, 0.083, 0.166, 0.333, 0.5, 0.666, 0.777, 0.888);
-    
     for(int i = 0; i < 8; i++) {
         float d = abs(h - centers[i]);
-        if (i == 0) d = min(d, abs(h - 1.0)); // Red wraps
+        if (i == 0) d = min(d, abs(h - 1.0));
         weights[i] = smoothstep(0.15, 0.0, d);
     }
     

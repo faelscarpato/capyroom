@@ -14,6 +14,7 @@ interface AppState {
   addPhotos: (files: File[]) => void;
   setActivePhoto: (id: string | null) => void;
   updateAdjustments: (adj: Partial<Adjustments>) => void;
+  applyAutoAdjustments: () => void;
   undo: () => void;
   redo: () => void;
   resetAdjustments: () => void;
@@ -67,10 +68,42 @@ export const useStore = create<AppState>((set) => ({
       p.id === state.activePhotoId ? { ...p, adjustments: newAdjustments } : p
     );
 
-    // Minimal history logic: only push if significant change or debounce (simplified here)
     const newHistory = state.history.slice(0, state.historyIndex + 1);
     newHistory.push(newAdjustments);
     if (newHistory.length > 50) newHistory.shift();
+
+    return { 
+      photos: updatedPhotos,
+      history: newHistory,
+      historyIndex: newHistory.length - 1
+    };
+  }),
+
+  applyAutoAdjustments: () => set((state) => {
+    if (!state.activePhotoId) return state;
+    const photo = state.photos.find(p => p.id === state.activePhotoId);
+    if (!photo) return state;
+
+    const auto: Partial<Adjustments> = {
+      exposure: 12,
+      contrast: 15,
+      highlights: -25,
+      shadows: 20,
+      whites: 10,
+      blacks: -10,
+      vibrance: 25,
+      saturation: 5,
+      temp: 4,
+      tint: 0,
+    };
+
+    const newAdjustments = { ...photo.adjustments, ...auto };
+    const updatedPhotos = state.photos.map(p => 
+      p.id === state.activePhotoId ? { ...p, adjustments: newAdjustments } : p
+    );
+
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(newAdjustments);
 
     return { 
       photos: updatedPhotos,

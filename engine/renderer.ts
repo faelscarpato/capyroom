@@ -6,6 +6,7 @@ export class WebGLRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
   private texture: WebGLTexture | null = null;
+  private curveTexture: WebGLTexture | null = null;
   private positionBuffer: WebGLBuffer | null = null;
   private texCoordBuffer: WebGLBuffer | null = null;
   private vao: WebGLVertexArrayObject | null = null;
@@ -16,6 +17,7 @@ export class WebGLRenderer {
     this.gl = gl;
     this.program = this.createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
     this.initBuffers();
+    this.initCurveTexture();
   }
 
   private createShader(type: number, source: string): WebGLShader {
@@ -65,6 +67,16 @@ export class WebGLRenderer {
     gl.bindVertexArray(null);
   }
 
+  private initCurveTexture() {
+    const gl = this.gl;
+    this.curveTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.curveTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+
   public setImage(image: HTMLImageElement | HTMLCanvasElement | ImageBitmap) {
     const gl = this.gl;
     if (this.texture) gl.deleteTexture(this.texture);
@@ -77,18 +89,51 @@ export class WebGLRenderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   }
 
+  private generateCurveLUT(points: { x: number, y: number }[]): Uint8Array {
+    const lut = new Uint8Array(256);
+    const sorted = [...points].sort((a, b) => a.x - b.x);
+
+    for (let i = 0; i < 256; i++) {
+      const x = i / 255;
+      let y = x;
+
+      // Find segment
+      let idx = 0;
+      while (idx < sorted.length - 2 && x > sorted[idx + 1].x) {
+        idx++;
+      }
+
+      const p0 = sorted[idx];
+      const p1 = sorted[idx + 1];
+
+      if (p1) {
+        const t = (x - p0.x) / (p1.x - p0.x || 0.0001);
+        y = p0.y + t * (p1.y - p0.y);
+      } else {
+        y = p0.y;
+      }
+      
+      lut[i] = Math.max(0, Math.min(255, Math.round(y * 255)));
+    }
+    return lut;
+  }
+
   public render(adjustments: Adjustments, width: number, height: number) {
     const gl = this.gl;
     gl.viewport(0, 0, width, height);
-    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.useProgram(this.program);
     gl.bindVertexArray(this.vao);
 
+    // Update Curve Texture
+    const lut = this.generateCurveLUT(adjustments.curvePoints);
+    gl.bindTexture(gl.TEXTURE_2D, this.curveTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 256, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, lut);
+
     const setUniform = (name: string, val: number) => {
       const loc = gl.getUniformLocation(this.program, name);
-      gl.uniform1f(loc, val);
+      if (loc) gl.uniform1f(loc, val);
     };
 
     setUniform('u_exposure', adjustments.exposure);
@@ -105,7 +150,6 @@ export class WebGLRenderer {
     setUniform('u_vignette', adjustments.vignette);
     setUniform('u_grain', adjustments.grain);
 
-    // HSL Uniforms
     const colors = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
     const hArr = new Float32Array(8);
     const sArr = new Float32Array(8);
@@ -126,11 +170,16 @@ export class WebGLRenderer {
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.uniform1i(gl.getUniformLocation(this.program, 'u_image'), 0);
 
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.curveTexture);
+    gl.uniform1i(gl.getUniformLocation(this.program, 'u_curve_lut'), 1);
+
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
   
   public dispose() {
     if(this.texture) this.gl.deleteTexture(this.texture);
+    if(this.curveTexture) this.gl.deleteTexture(this.curveTexture);
     this.gl.deleteProgram(this.program);
   }
 }

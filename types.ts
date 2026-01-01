@@ -17,6 +17,18 @@ export enum EditTool {
   REMOVE = 'REMOVER'
 }
 
+// Added Photo interface to fix 'no exported member Photo' error
+export interface Photo {
+  id: string;
+  name: string;
+  file: File;
+  previewUrl: string;
+  width: number;
+  height: number;
+  lastModified: number;
+  adjustments: Adjustments;
+}
+
 export interface Adjustments {
   // Light
   exposure: number;
@@ -25,6 +37,7 @@ export interface Adjustments {
   shadows: number;
   whites: number;
   blacks: number;
+  curvePoints: { x: number; y: number }[];
   // Color
   temp: number;
   tint: number;
@@ -50,17 +63,6 @@ export interface Adjustments {
   straighten: number;
 }
 
-export interface Photo {
-  id: string;
-  name: string;
-  file: File;
-  previewUrl: string;
-  width: number;
-  height: number;
-  lastModified: number;
-  adjustments: Adjustments;
-}
-
 export const DEFAULT_ADJUSTMENTS: Adjustments = {
   exposure: 0,
   contrast: 0,
@@ -68,6 +70,12 @@ export const DEFAULT_ADJUSTMENTS: Adjustments = {
   shadows: 0,
   whites: 0,
   blacks: 0,
+  curvePoints: [
+    { x: 0, y: 0 },
+    { x: 0.33, y: 0.33 },
+    { x: 0.66, y: 0.66 },
+    { x: 1, y: 1 }
+  ],
   temp: 0,
   tint: 0,
   vibrance: 0,
