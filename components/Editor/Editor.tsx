@@ -30,7 +30,7 @@ const Editor: React.FC = () => {
       renderer.render(photo.adjustments, targetWidth, targetHeight);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
       const link = document.createElement('a');
-      link.download = `capyroom_${sizeType.toLowerCase()}_${photo.name.split('.')[0]}.jpg`;
+      link.download = `capyroom_${photo.name.split('.')[0]}.jpg`;
       link.href = dataUrl; link.click();
       renderer.dispose(); setShowExportModal(false);
     } catch (err) { console.error(err); } finally { setIsExporting(false); }
@@ -56,18 +56,22 @@ const Editor: React.FC = () => {
 
       <footer className="bg-black/95 backdrop-blur-xl border-t border-zinc-900 pb-safe z-10">
         <div className="h-44 px-5 flex flex-col justify-center">
-            <Controls tool={activeTool} />
+            <Controls tool={activeTool} onToolChange={setActiveTool} />
         </div>
-        <div className="h-16 overflow-x-auto no-scrollbar flex items-center px-4 gap-8 border-t border-zinc-900/50">
-          {[EditTool.LIGHT, EditTool.COLOR, EditTool.EFFECTS, EditTool.OPTICS, EditTool.GEOMETRY, EditTool.CROP, EditTool.PRESETS].map((tool) => (
-            <button key={tool} onClick={() => setActiveTool(tool)} className={`flex flex-col items-center gap-1.5 shrink-0 transition-all ${activeTool === tool ? 'text-blue-500' : 'text-zinc-600 hover:text-zinc-400'}`}>
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTool === tool ? 'opacity-100' : 'opacity-60'}`}>{tool}</span>
-              <div className={`w-1 h-1 rounded-full transition-transform ${activeTool === tool ? 'bg-blue-500 scale-100' : 'bg-transparent scale-0'}`} />
-            </button>
-          ))}
-          <div className="w-px h-6 bg-zinc-800 mx-2" />
-          <button onClick={resetAdjustments} className="flex flex-col items-center gap-1.5 shrink-0 text-red-900/40 hover:text-red-600 transition-colors"><span className="text-[10px] font-black uppercase tracking-[0.2em]">Reset</span></button>
-        </div>
+        
+        {/* Barra de Ferramentas - Escondida no modo Crop para foco total */}
+        {activeTool !== EditTool.CROP && (
+          <div className="h-16 overflow-x-auto no-scrollbar flex items-center px-4 gap-8 border-t border-zinc-900/50">
+            {[EditTool.LIGHT, EditTool.COLOR, EditTool.EFFECTS, EditTool.OPTICS, EditTool.GEOMETRY, EditTool.CROP, EditTool.PRESETS].map((tool) => (
+              <button key={tool} onClick={() => setActiveTool(tool)} className={`flex flex-col items-center gap-1.5 shrink-0 transition-all ${activeTool === tool ? 'text-blue-500' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${activeTool === tool ? 'opacity-100' : 'opacity-60'}`}>{tool}</span>
+                <div className={`w-1 h-1 rounded-full transition-transform ${activeTool === tool ? 'bg-blue-500 scale-100' : 'bg-transparent scale-0'}`} />
+              </button>
+            ))}
+            <div className="w-px h-6 bg-zinc-800 mx-2" />
+            <button onClick={resetAdjustments} className="flex flex-col items-center gap-1.5 shrink-0 text-red-900/40 hover:text-red-600 transition-colors"><span className="text-[10px] font-black uppercase tracking-[0.2em]">Reset</span></button>
+          </div>
+        )}
       </footer>
 
       {showExportModal && (

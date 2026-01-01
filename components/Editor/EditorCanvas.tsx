@@ -12,12 +12,11 @@ const EditorCanvas: React.FC<{ activeTool?: EditTool }> = ({ activeTool }) => {
   const [isComparing, setIsComparing] = useState(false);
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
   
-  const { photos, activePhotoId } = useStore();
+  const { photos, activePhotoId, updateAdjustments } = useStore();
   const photo = photos.find(p => p.id === activePhotoId);
 
   const pointers = useRef<Map<number, React.PointerEvent<HTMLDivElement>>>(new Map());
   const lastPinchDist = useRef<number>(0);
-  const lastTouchTime = useRef<number>(0);
   const isDragging = useRef(false);
   const lastPanPos = useRef({ x: 0, y: 0 });
 
@@ -52,14 +51,10 @@ const EditorCanvas: React.FC<{ activeTool?: EditTool }> = ({ activeTool }) => {
 
   useEffect(() => { renderFrame(); }, [photo?.adjustments, isComparing, renderFrame]);
 
+  // Handle pointer events for Zoom/Pan
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeTool === EditTool.CROP) return; // Desativa pan/zoom no modo crop para não conflitar
     pointers.current.set(e.pointerId, e);
-    const now = Date.now();
-    if (now - lastTouchTime.current < 300 && pointers.current.size === 1) {
-      setTransform(prev => ({ scale: prev.scale > 1.1 ? 1 : 3, x: 0, y: 0 }));
-      lastTouchTime.current = 0; return;
-    }
-    lastTouchTime.current = now;
     if (pointers.current.size === 1) {
       isDragging.current = true;
       lastPanPos.current = { x: e.clientX, y: e.clientY };
@@ -72,6 +67,7 @@ const EditorCanvas: React.FC<{ activeTool?: EditTool }> = ({ activeTool }) => {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeTool === EditTool.CROP) return;
     pointers.current.set(e.pointerId, e);
     if (pointers.current.size === 1 && isDragging.current) {
       if (transform.scale > 1.1) {
@@ -90,32 +86,44 @@ const EditorCanvas: React.FC<{ activeTool?: EditTool }> = ({ activeTool }) => {
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) lastPinchDist.current = 0;
     if (pointers.current.size === 0) { isDragging.current = false; setIsComparing(false); }
   };
 
   return (
     <div ref={containerRef} className="flex-1 relative flex items-center justify-center p-4 select-none overflow-hidden touch-none" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onContextMenu={e => e.preventDefault()}>
-      <div style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transition: pointers.current.size === 0 ? 'transform 0.2s cubic-bezier(0.2, 0, 0.2, 1)' : 'none', willChange: 'transform' }} className="relative">
+      <div 
+        style={{ 
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, 
+          transition: pointers.current.size === 0 ? 'transform 0.2s cubic-bezier(0.2, 0, 0.2, 1)' : 'none', 
+          willChange: 'transform' 
+        }} 
+        className="relative"
+      >
         <canvas ref={canvasRef} className="shadow-2xl bg-zinc-900 pointer-events-none" />
         
         {activeTool === EditTool.CROP && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0 border-2 border-white/50" />
-            <div className="absolute inset-x-0 top-1/3 h-px bg-white/30" />
-            <div className="absolute inset-x-0 top-2/3 h-px bg-white/30" />
-            <div className="absolute inset-y-0 left-1/3 w-px bg-white/30" />
-            <div className="absolute inset-y-0 left-2/3 w-px bg-white/30" />
-            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-white" />
-            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-white" />
-            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-white" />
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-white" />
+          <div className="absolute inset-0 z-40">
+             {/* Regra dos terços */}
+            <div className="absolute inset-0 border-2 border-white/80 pointer-events-none" />
+            <div className="absolute top-1/3 w-full h-px bg-white/40 pointer-events-none" />
+            <div className="absolute top-2/3 w-full h-px bg-white/40 pointer-events-none" />
+            <div className="absolute left-1/3 h-full w-px bg-white/40 pointer-events-none" />
+            <div className="absolute left-2/3 h-full w-px bg-white/40 pointer-events-none" />
+
+            {/* Corner Handles */}
+            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-white cursor-nw-resize" />
+            <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-white cursor-ne-resize" />
+            <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-white cursor-sw-resize" />
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-white cursor-se-resize" />
+            
+            {/* Dark Overlays (Simulado) */}
+            <div className="absolute -inset-20 border-[80px] border-black/50 pointer-events-none" />
           </div>
         )}
       </div>
 
-      {isComparing && <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white border border-white/20 z-30">Original</div>}
-      {transform.scale > 1.1 && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 border border-blue-500/20 z-30">Zoom {transform.scale.toFixed(1)}x</div>}
+      {isComparing && <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white border border-white/20 z-30">Antes</div>}
+      {transform.scale > 1.1 && !isComparing && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 border border-blue-500/20 z-30">{transform.scale.toFixed(1)}x</div>}
     </div>
   );
 };
